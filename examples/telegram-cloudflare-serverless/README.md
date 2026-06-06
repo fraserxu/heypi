@@ -45,6 +45,14 @@ TUNNEL_URL=https://<random>.trycloudflare.com pnpm webhook   # point Telegram at
 
 DM your bot. Each chat is its own Durable Object, so memory persists per chat in DO-SQLite.
 
+## Security
+
+The deployed agent runs with a **real shell and network** (`host-bash`) inside its container, with
+no per-command approval. Restrict who can talk to it: set `TELEGRAM_ALLOWED_USERS` to your Telegram
+user id(s) (from [@userinfobot](https://t.me/userinfobot)). With it empty, anyone who finds the bot
+can run commands in the container (which also holds your model key). For a locked-down setup, drop
+`RUNNER_RUNTIME=host-bash` (back to sandboxed `just-bash`, no network) and/or configure approvals.
+
 ## Deploy (free)
 
 **1. Runner on Modal** (run from the repo root so the Dockerfile sees the monorepo):
@@ -61,6 +69,7 @@ modal deploy examples/telegram-cloudflare-serverless/modal_runner.py
 wrangler login
 pnpm exec wrangler secret put TELEGRAM_BOT_TOKEN
 pnpm exec wrangler secret put RUNNER_URL          # value = the Modal URL above
+pnpm exec wrangler secret put TELEGRAM_ALLOWED_USERS   # your Telegram user id (from @userinfobot)
 # optional: pnpm exec wrangler secret put TELEGRAM_WEBHOOK_SECRET
 pnpm run deploy                                   # `pnpm deploy` is a reserved pnpm command — use `run`
                                                   # -> https://<your-worker>.workers.dev

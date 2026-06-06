@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { parseTelegramUpdate, sendTelegramMessage } from "../src/telegram.js";
+import { isAllowedSender, parseTelegramUpdate, sendTelegramMessage } from "../src/telegram.js";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
 	globalThis.fetch = realFetch;
 });
 
-test("parseTelegramUpdate extracts chat id and text from a message update", () => {
-	assert.deepEqual(parseTelegramUpdate({ message: { chat: { id: 42 }, text: "hello" } }), { chatId: 42, text: "hello" });
+test("parseTelegramUpdate extracts chat id, sender id, and text from a message update", () => {
+	assert.deepEqual(parseTelegramUpdate({ message: { chat: { id: 42 }, from: { id: 7 }, text: "hello" } }), {
+		chatId: 42,
+		text: "hello",
+		userId: 7,
+	});
 });
 
 test("parseTelegramUpdate ignores updates without usable message text", () => {
@@ -16,6 +20,14 @@ test("parseTelegramUpdate ignores updates without usable message text", () => {
 	assert.equal(parseTelegramUpdate({ message: { chat: { id: 1 } } }), null);
 	assert.equal(parseTelegramUpdate({ message: { chat: { id: 1 }, text: "   " } }), null);
 	assert.equal(parseTelegramUpdate({ message: { text: "no chat" } }), null);
+});
+
+test("isAllowedSender gates by user id, and an empty allowlist allows everyone", () => {
+	assert.equal(isAllowedSender("", 5), true);
+	assert.equal(isAllowedSender(undefined, undefined), true);
+	assert.equal(isAllowedSender("7, 9", 7), true);
+	assert.equal(isAllowedSender("7, 9", 8), false);
+	assert.equal(isAllowedSender("7", undefined), false);
 });
 
 test("sendTelegramMessage posts to the Bot API sendMessage endpoint", async () => {

@@ -1,5 +1,5 @@
 import { PiRunner } from "./pi-runner-container.js";
-import { parseTelegramUpdate, sendTelegramMessage } from "./telegram.js";
+import { isAllowedSender, parseTelegramUpdate, sendTelegramMessage } from "./telegram.js";
 import { ThreadAgent } from "./thread-agent.js";
 
 export { PiRunner, ThreadAgent };
@@ -14,6 +14,8 @@ export type Env = {
 	TELEGRAM_BOT_TOKEN?: string;
 	/** Optional shared secret; if set, /telegram requires Telegram's matching secret-token header. */
 	TELEGRAM_WEBHOOK_SECRET?: string;
+	/** Comma-separated Telegram user ids allowed to use the bot. Empty = everyone (not recommended). */
+	TELEGRAM_ALLOWED_USERS?: string;
 	// Consumed by the PiRunner container class (injected into the container as env):
 	HEYPI_MODEL?: string;
 	ANTHROPIC_API_KEY?: string;
@@ -52,6 +54,10 @@ export default {
 				return new Response("invalid json", { status: 400 });
 			}
 			const message = parseTelegramUpdate(update);
+			// Ignore senders not on the allowlist (the agent has a real shell + network; gate access).
+			if (message && !isAllowedSender(env.TELEGRAM_ALLOWED_USERS, message.userId)) {
+				return new Response("ok");
+			}
 			if (message && env.TELEGRAM_BOT_TOKEN) {
 				const token = env.TELEGRAM_BOT_TOKEN;
 				const threadKey = `telegram:${message.chatId}`;

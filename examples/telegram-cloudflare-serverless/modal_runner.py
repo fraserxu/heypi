@@ -11,6 +11,7 @@
 #
 # Run `modal deploy` from the repo root so the Dockerfile's `COPY . .` sees the whole monorepo.
 
+import os
 import subprocess
 
 import modal
@@ -25,9 +26,15 @@ app = modal.App("heypi-runner")
 @modal.concurrent(max_inputs=20)
 @modal.web_server(8788, startup_timeout=180)
 def runner():
-    # ANTHROPIC_API_KEY / HEYPI_MODEL come from the `heypi` Modal secret; the image ENV sets
-    # RUNNER_PORT/AGENT_DIR/RUNNER_STATE. The runner binds 0.0.0.0:8788, which Modal exposes.
+    # ANTHROPIC_API_KEY / HEYPI_MODEL come from the `heypi` Modal secret. We point the agent at this
+    # example's agent dir (persona/skills) and use host-bash so it has a real shell + network — the
+    # Modal container is the sandbox boundary. Binds 0.0.0.0:8788, which Modal exposes.
     subprocess.Popen(
         ["node", "--import", "tsx", "--conditions", "development", "src/container/runner-server.ts"],
         cwd="/app/packages/heypi-cloudflare",
+        env={
+            **os.environ,
+            "AGENT_DIR": "/app/examples/telegram-cloudflare-serverless/agent",
+            "RUNNER_RUNTIME": "host-bash",
+        },
     )

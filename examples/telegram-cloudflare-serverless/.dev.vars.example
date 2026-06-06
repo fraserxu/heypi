@@ -5,6 +5,10 @@ TELEGRAM_BOT_TOKEN=
 # Optional: set the same value when registering the webhook (setWebhook secret_token) to reject
 # forged requests. Leave blank to skip verification.
 TELEGRAM_WEBHOOK_SECRET=
+# STRONGLY recommended: comma-separated Telegram user ids allowed to use the bot. The deployed agent
+# has a real shell + network, so leaving this empty lets anyone who finds the bot run commands.
+# Find your id by messaging @userinfobot on Telegram.
+TELEGRAM_ALLOWED_USERS=
 # Where the Worker's Durable Object reaches the Pi runner.
 #   local dev:  http://127.0.0.1:8788  (run `pnpm runner` in another terminal)
 #   deployed:   your Modal URL, e.g. https://<you>--heypi-runner-runner.modal.run

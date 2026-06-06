@@ -21,13 +21,24 @@ const stateDir = resolve(process.env.RUNNER_STATE ?? "./.runner-state");
 const workspaceDir = resolve(agentDir, "..", "workspace");
 for (const dir of [stateDir, workspaceDir]) if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
+// Runtime for the agent's shell/file tools. Default just-bash (sandboxed, network disabled) is safe
+// for running the runner directly on a dev machine. In an isolated container set RUNNER_RUNTIME to
+// host-bash so the agent gets a real shell with network (curl/git/etc.) — the container is the
+// sandbox boundary.
+const runtimeNames = ["just-bash", "guarded-bash", "host-bash"] as const;
+type RunnerRuntimeName = (typeof runtimeNames)[number];
+const requested = process.env.RUNNER_RUNTIME ?? "just-bash";
+const runtimeName: RunnerRuntimeName = (runtimeNames as readonly string[]).includes(requested)
+	? (requested as RunnerRuntimeName)
+	: "just-bash";
+
 const store = sqliteStore({ path: resolve(stateDir, "runner.db") });
 await store.setup();
 
 const runner = createAgentRunner({
 	agent: agentFrom(agentDir, { model, tools: coreTools({ bash: true }) }),
 	store,
-	runtime: { name: "just-bash", root: workspaceDir },
+	runtime: { name: runtimeName, root: workspaceDir },
 });
 
 type RunBody = { sessionId?: string; text?: string; entries?: SessionEntry[]; actor?: string; channel?: string };
@@ -71,4 +82,6 @@ const server = createServer((req, res) => {
 });
 
 // Bind 0.0.0.0 so the service is reachable from outside the container (required by Modal/Containers).
-server.listen(port, "0.0.0.0", () => console.log(`[runner] listening on http://0.0.0.0:${port} (model=${model})`));
+server.listen(port, "0.0.0.0", () =>
+	console.log(`[runner] listening on http://0.0.0.0:${port} (model=${model}, runtime=${runtimeName})`),
+);

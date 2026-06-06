@@ -3,10 +3,12 @@
 # through the PI_RUNNER binding. Build context is the repo root (a pnpm monorepo).
 FROM node:22-slim
 
-# Python is required by Modal (it bootstraps its function runtime in the image); harmless and unused
-# on the Cloudflare Containers path.
+# python3: required by Modal (it bootstraps its runtime in the image).
+# curl/git/jq/ca-certificates: give the agent's host-bash real network + dev tools.
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends python3 python3-pip python-is-python3 \
+	&& apt-get install -y --no-install-recommends \
+		python3 python3-pip python-is-python3 \
+		curl ca-certificates git jq \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.17.1 --activate

@@ -2,19 +2,30 @@
 // request-scoped and lives in the Worker — no bridge needed. These helpers keep the parsing and the
 // outbound call pure and testable; index.ts wires them to the Durable Object.
 
-export type TelegramMessage = { chatId: number; text: string };
+export type TelegramMessage = { chatId: number; text: string; userId?: number };
 
 type TelegramUpdate = {
-	message?: { text?: string; chat?: { id?: number } };
+	message?: { text?: string; chat?: { id?: number }; from?: { id?: number } };
 };
 
-/** Extracts the chat id and text from a Telegram Update, or null for updates we don't handle. */
+/** Extracts the chat id, sender id, and text from a Telegram Update, or null for updates we don't handle. */
 export function parseTelegramUpdate(body: unknown): TelegramMessage | null {
 	const update = body as TelegramUpdate;
 	const text = update?.message?.text;
 	const chatId = update?.message?.chat?.id;
 	if (typeof text !== "string" || !text.trim() || typeof chatId !== "number") return null;
-	return { chatId, text };
+	const userId = update?.message?.from?.id;
+	return { chatId, text, userId: typeof userId === "number" ? userId : undefined };
+}
+
+/** True if the sender is allowed. An empty/blank allowlist allows everyone (use with care). */
+export function isAllowedSender(allowlist: string | undefined, userId: number | undefined): boolean {
+	const allowed = (allowlist ?? "")
+		.split(",")
+		.map((id) => id.trim())
+		.filter(Boolean);
+	if (allowed.length === 0) return true;
+	return userId !== undefined && allowed.includes(String(userId));
 }
 
 /** Sends a reply back to a Telegram chat via the Bot API. */
